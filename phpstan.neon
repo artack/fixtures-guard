@@ -1,0 +1,14 @@
+parameters:
+  level: max
+
+  paths:
+    - src
+    - tests
+
+  treatPhpDocTypesAsCertain: false
+
+  ignoreErrors:
+    # Symfony 8.1 deprecates the BundleInterface of HttpKernel, but 7.4 has no other one
+    - identifier: return.deprecatedInterface
+      path: tests/Kernel/TestKernel.php
+      reportUnmatched: false
