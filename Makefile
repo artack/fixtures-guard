@@ -10,6 +10,9 @@ INSTALL := composer install --prefer-dist --no-interaction --no-progress
 
 .DEFAULT_GOAL := help
 
+# every run shares vendor/ and composer.lock, and test has to end with PHP 8.5 and the highest dependencies
+.NOTPARALLEL:
+
 .PHONY: help build php85-cli php86-cli install update-tools phpcs phpcs-fix phpstan coverage \
 	test test-php85-lowest test-php85-highest test-php86-lowest test-php86-highest verify
 
