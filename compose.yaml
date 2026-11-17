@@ -1,0 +1,21 @@
+x-php: &php
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    working_dir: /app
+    environment:
+        HOME: /tmp
+        COMPOSER_CACHE_DIR: /composer-cache
+    volumes:
+        - .:/app
+        - ${DOCKER_COMPOSER_CACHE:-~/.cache/composer-docker}:/composer-cache
+
+services:
+    php85:
+        <<: *php
+        build:
+            context: ./docker
+            dockerfile: php85/Dockerfile
+    php86:
+        <<: *php
+        build:
+            context: ./docker
+            dockerfile: php86/Dockerfile

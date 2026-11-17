@@ -1,0 +1,110 @@
+name: ci
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          ini-values: date.timezone=Europe/Zurich,memory_limit=-1,zend.assertions=1
+          coverage: none
+          tools: composer
+
+      - name: PHP version
+        run: php -v
+
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer Downloads
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-linter-${{ hashFiles('composer.json', 'tools/*/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-linter-
+
+      - name: Composer Validate
+        run: composer validate --strict
+
+      - name: Composer Install Dependencies
+        run: composer update --prefer-dist --no-progress --no-interaction
+
+      - name: Composer Audit
+        run: composer audit
+
+      - name: Composer Tools PHPCS Install Dependencies
+        run: composer install --working-dir tools/php-cs-fixer --prefer-dist --no-progress --no-scripts --no-interaction
+
+      - name: PHPCS Run
+        run: composer phpcs
+
+      - name: Composer Tools PHPSTAN Install Dependencies
+        run: composer install --working-dir tools/phpstan --prefer-dist --no-progress --no-scripts --no-interaction
+
+      - name: PHPSTAN Run
+        run: composer phpstan
+
+  tests:
+    name: PHP ${{ matrix.php }} - ${{ matrix.dependencies }} dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.5', '8.6']
+        dependencies: [lowest, highest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          ini-values: date.timezone=Europe/Zurich,memory_limit=-1,zend.assertions=1
+          coverage: none
+          tools: composer
+
+      - name: PHP version
+        run: php -v
+
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer Downloads
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-${{ matrix.dependencies }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-${{ runner.os }}-php${{ matrix.php }}-${{ matrix.dependencies }}-
+
+      - name: Composer Install Dependencies
+        run: composer update --prefer-dist --no-progress --no-interaction ${{ matrix.dependencies == 'lowest' && '--prefer-lowest --prefer-stable' || '' }}
+
+      - name: Show resolved versions
+        run: composer show
+
+      - name: PHPUnit Run
+        run: composer phpunit
